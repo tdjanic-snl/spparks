@@ -192,17 +192,22 @@ void AppDiffusion::input_app(char *command, int narg, char **arg)
     if (deprate_total < 0.0) error->all(FLERR,"Illegal deposition command");
     if (domain->dimension == 2 && (dir[1] >= 0.0 || dir[2] != 0.0))
       error->all(FLERR,"Illegal deposition command");
-    if (domain->dimension == 3 && dir[2] >= 0.0)
+    if (domain->dimension == 3 && dir[2] > 0.0)
       error->all(FLERR,"Illegal deposition command");
+    if (domain->dimension == 3 && dir[0] != 0.0 && dir[1] != 0.0 &&dir[2] == 0.0)
+      error->all(FLERR,"Illegal deposition command");
+    if (domain->dimension != 3 && dir[0] == 0.0 && dir[1] == 0.0 && dir[2] == 0.0)
+      error->warning(FLERR,"Illegal deposition command. Incident-less deposition must be in 3D");
     if (d0 < 0.0) error->all(FLERR,"Illegal deposition command");
     if (coordlo < 0 || coordhi > maxneigh || coordlo > coordhi)
       error->all(FLERR,"Illegal deposition command");
 
     double len = sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
-    dir[0] /= len;
-    dir[1] /= len;
-    dir[2] /= len;
-
+    if (len > 0.0) {
+      dir[0] /= len;
+      dir[1] /= len;
+      dir[2] /= len;
+    }
     // ranbatch = RNG for batch deposition (same on all procs)
 
     if (depmode == DEP_BATCH) {
@@ -935,7 +940,7 @@ void AppDiffusion::update_propensities(int i, int j)
 void AppDiffusion::app_update(double stoptime)
 {
   int i,j,m;
-
+  double xtry,ytry;
   // ntotal = total # of atoms to deposit
 
   int nbatch_total;
@@ -956,17 +961,34 @@ void AppDiffusion::app_update(double stoptime)
       memory->smalloc(maxbatch*sizeof(DepInfo),"diffusion:depinfo_copy");
   }
 
-  // pick random positions at top of box for all depositions
-
+  // pick random positions for depositions
+  double reffrac,testfrac,xtmp,ytmp;
   for (i = 0; i < nbatch_total; i++) {
-    startpos[i][0] = domain->boxxlo + domain->xprd*ranbatch->uniform();
+    xtry = domain->boxxlo + domain->xprd*ranbatch->uniform();
     if (dimension == 2) {
       startpos[i][1] = domain->boxyhi;
       startpos[i][2] = 0.0;
     } else {
-      startpos[i][1] = domain->boxylo + domain->yprd*ranbatch->uniform();
-      startpos[i][2] = domain->boxzhi;
+      ytry = domain->boxylo + domain->yprd*ranbatch->uniform();
+      startpos[i][1] = ytry;
+      //random position anywhere on surface
+      if (dir[0] == 0 && dir[1] == 0 && dir[2] == 0) {
+        startpos[i][2] = domain->boxzlo + domain->zprd*ranbatch->uniform();
+      }
+      //random position at top of box if incident vector is defined
+      else startpos[i][2] = domain->boxzhi;
+
+      //check whether position is within xy-tilt; shift if not
+      if (domain->boxxy != 0) {
+        xtmp = xtry - domain->boxxlo;
+        ytmp = ytry - domain->boxylo;
+        reffrac = (domain->yprd)/(domain->boxxy);
+        if (xtmp != 0) testfrac=ytmp/xtmp;
+        else testfrac=reffrac;
+        if (testfrac >= reffrac && xtry < domain->boxxy) xtry += domain->xprd; //move wedge
+      } 
     }
+    startpos[i][0] = xtry;
   }
 
   // neligible = # of my sites eligible for a deposition atom
@@ -1378,14 +1400,34 @@ int AppDiffusion::find_deposition_site(RandomPark *random)
   // pick a random position at top of box
 
   double start[3];
-  start[0] = domain->boxxlo + domain->xprd*random->uniform();
+  double xtry,ytry,reffrac,testfrac,xtmp,ytmp;
+  xtry = domain->boxxlo + domain->xprd*random->uniform();
+
   if (dimension == 2) {
     start[1] = domain->boxyhi;
     start[2] = 0.0;
   } else {
-    start[1] = domain->boxylo + domain->yprd*random->uniform();
-    start[2] = domain->boxzhi;
+    ytry = domain->boxylo + domain->yprd*random->uniform();
+    start[1] = ytry;
+    //random position anywhere on surface
+    if (dir[0] == 0 && dir[1] == 0 && dir[2] == 0) {
+      start[2] = domain->boxzlo + domain->zprd*random->uniform();
+    }
+    //random position at top of box if incident vector is defined
+    else 
+      start[2] = domain->boxzhi;
+
+    //check whether position is within xy-tilt; shift if not
+    if (domain->boxxy != 0) {
+      reffrac = (domain->yprd)/(domain->boxxy);
+      xtmp = xtry - domain->boxxlo;
+      ytmp = ytry - domain->boxylo;
+      if (xtmp != 0.) testfrac = ytmp/xtmp;
+      else testfrac = reffrac;
+      if (testfrac > reffrac && xtry < domain->boxxy) xtry += domain->xprd; //move wedge
+    }
   }
+  start[0] = xtry;
 
   // for each vacant site:
   // discard site if neighbor count not between coordlo and coordhi
@@ -1424,47 +1466,129 @@ int AppDiffusion::find_deposition_site(RandomPark *random)
    dist2start = dist from site M to starting point of incident line
    dist2start is dist along incident line from start point to
      normal projection point of M
+   3D deposition computes distance between random site and M
 ------------------------------------------------------------------------- */
 
 int AppDiffusion::exceeds_limit(int m, double *start, double &dist2start)
 {
-  int increment,iprd,jprd;
+    if (dir[0] == 0 && dir[1] == 0 && dir[2] == 0) {
+      int increment,iprd,jprd,kprd;
+      iprd = jprd = kprd = 0;
+      double d0sq = d0*d0;
+      double distsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      double newdistsq = distsq_to_site(m,start,iprd-1,jprd,kprd,dist2start);
+      if (newdistsq < distsq) increment = -1;
+      else increment = 1;
 
-  iprd = jprd = 0;
-  double d0sq = d0*d0;
+      iprd += increment;
+      newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      while (newdistsq < distsq) {
+        distsq = newdistsq;
+        iprd += increment;
+        newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      }
+      iprd -= increment;
 
-  double distsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-  double newdistsq = distsq_to_line(m,start,iprd-1,jprd,dist2start);
-  if (newdistsq < distsq) increment = -1;
-  else increment = 1;
-
-  iprd += increment;
-  newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-  while (newdistsq < distsq) {
-    distsq = newdistsq;
-    iprd += increment;
-    newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-  }
-  iprd -= increment;
-
-  if (dimension == 3) {
-    newdistsq = distsq_to_line(m,start,iprd,jprd-1,dist2start);
-    if (newdistsq < distsq) increment = -1;
-    else increment = 1;
-
-    jprd += increment;
-    newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-    while (newdistsq < distsq) {
-      distsq = newdistsq;
+      newdistsq = distsq_to_site(m,start,iprd,jprd-1,kprd,dist2start);
+      if (newdistsq < distsq) increment = -1;
+      else increment = 1;
       jprd += increment;
-      newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-    }
-  }
-  jprd -= increment;
+      newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      while (newdistsq < distsq) {
+        distsq = newdistsq;
+        jprd += increment;
+        newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      }
+      jprd -= increment;
 
-  if (distsq > d0sq) return 1;
-  distsq = distsq_to_line(m,start,iprd,jprd,dist2start);
-  return 0;
+      newdistsq = distsq_to_site(m,start,iprd,jprd,kprd-1,dist2start);
+      if (newdistsq < distsq) increment = -1;
+      else increment = 1;
+      kprd += increment;
+      newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      while (newdistsq < distsq) {
+        distsq = newdistsq;
+        kprd += increment;
+        newdistsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      }
+      kprd -= increment;
+
+      if (distsq > d0sq) return 1;
+      distsq = distsq_to_site(m,start,iprd,jprd,kprd,dist2start);
+      return 0;
+
+    }
+
+    else {
+
+      int increment,iprd,jprd;
+
+      iprd = jprd = 0;
+      double d0sq = d0*d0;
+
+      double distsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+      double newdistsq = distsq_to_line(m,start,iprd-1,jprd,dist2start);
+      if (newdistsq < distsq) increment = -1;
+      else increment = 1;
+
+      iprd += increment;
+      newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+      while (newdistsq < distsq) {
+        distsq = newdistsq;
+        iprd += increment;
+        newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+      }
+      iprd -= increment;
+
+      if (dimension == 3) {
+        newdistsq = distsq_to_line(m,start,iprd,jprd-1,dist2start);
+        if (newdistsq < distsq) increment = -1;
+        else increment = 1;
+
+        jprd += increment;
+        newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+        while (newdistsq < distsq) {
+          distsq = newdistsq;
+          jprd += increment;
+          newdistsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+        }
+      }
+      jprd -= increment;
+
+      if (distsq > d0sq) return 1;
+      distsq = distsq_to_line(m,start,iprd,jprd,dist2start);
+      return 0;
+    }
+}
+
+/* ----------------------------------------------------------------------
+   for 3D deposition
+   compute normal distsq from site M to random position
+   site M really becomes a periodic image in XY of M, adjusted via iprd/jprd/kprd
+   also compute and return dist2start
+   dist2start = dist from site M to random position
+------------------------------------------------------------------------- */
+
+double AppDiffusion::distsq_to_site(int m, double *start,
+				    int iprd, int jprd, int kprd, double &dist2start)
+{
+  double delta[3],projection[3],offset[3];
+  double xtry,ytry;
+
+  xtry = xyz[m][0] + iprd*domain->xprd - start[0];
+  ytry = xyz[m][1] + jprd*domain->yprd - start[1];
+  if (jprd != 0) xtry += jprd*domain->boxxy;
+  delta[0] = xtry;
+  delta[1] = ytry;
+  delta[2] = xyz[m][2] + kprd*domain->zprd - start[2];
+
+  offset[0] = delta[0];
+  offset[1] = delta[1];
+  offset[2] = delta[2];
+
+  double tmp=offset[0]*offset[0] + offset[1]*offset[1] + offset[2]*offset[2];
+  dist2start = sqrt(tmp);
+  return tmp;
 }
 
 /* ----------------------------------------------------------------------
@@ -1480,11 +1604,15 @@ double AppDiffusion::distsq_to_line(int m, double *start,
 				    int iprd, int jprd, double &dist2start)
 {
   double delta[3],projection[3],offset[3];
+  double xtry,ytry;
 
-  delta[0] = xyz[m][0] + iprd*domain->xprd - start[0];
-  delta[1] = xyz[m][1] + jprd*domain->yprd - start[1];
+  xtry = xyz[m][0] + iprd*domain->xprd - start[0];
+  ytry = xyz[m][1] + jprd*domain->yprd - start[1];
+  if (jprd != 0) xtry += jprd*domain->boxxy;
+  delta[0] = xtry;
+  delta[1] = ytry;
   delta[2] = xyz[m][2] - start[2];
-    
+
   dist2start = dir[0]*delta[0] + dir[1]*delta[1] + dir[2]*delta[2];
   projection[0] = dist2start*dir[0];
   projection[1] = dist2start*dir[1];
@@ -1493,6 +1621,7 @@ double AppDiffusion::distsq_to_line(int m, double *start,
   offset[0] = delta[0] - projection[0];
   offset[1] = delta[1] - projection[1];
   offset[2] = delta[2] - projection[2];
+
   return offset[0]*offset[0] + offset[1]*offset[1] + offset[2]*offset[2];
 }
 

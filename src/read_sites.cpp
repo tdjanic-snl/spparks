@@ -107,6 +107,11 @@ void ReadSites::command(int narg, char **arg)
     if (domain->dimension == 2) domain->procs2domain_2d();
     if (domain->dimension == 3) domain->procs2domain_3d();
   }
+  else {
+    if (domain->boxxy != 0) 
+      error->all(FLERR,
+              "Cannot read sites for non-orthogonal box.");
+  }
 
   // read rest of file in free format
   // if add a section keyword, add to header::section_keywords and NSECTIONS

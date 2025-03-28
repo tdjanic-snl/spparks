@@ -951,9 +951,14 @@ void AppLattice::create_set(int iset, int isector, int icolor, Solve *oldsolve)
 {
   // sector boundaries
 
-  double xmid = 0.5 * (domain->subxlo + domain->subxhi);
   double ymid = 0.5 * (domain->subylo + domain->subyhi);
   double zmid = 0.5 * (domain->subzlo + domain->subzhi);
+
+  int myj = (domain->subylo - domain->boxylo)*(domain->procgrid[1])/(domain->yprd);
+  double myxlo = domain->subxlo + (myj)*(domain->subxy);
+  double cubxhi = domain->subxhi + (myj)*(domain->subxy);
+  double myxhi = cubxhi + (domain->subxy);
+  double xmid = 0.5 * (myxlo + cubxhi);
 
   // count sites in subset
 
@@ -967,7 +972,11 @@ void AppLattice::create_set(int iset, int isector, int icolor, Solve *oldsolve)
 
     if (isector > 0) {
       if (xyz[i][0] < xmid) iwhich = 0;
-      else iwhich = 1;
+      else {
+        //add check for nonorthogonal wedge
+        if (xyz[i][0] > cubxhi && xyz[i][0] <= myxhi) iwhich = 0;
+        else iwhich = 1;
+      }
       if (xyz[i][1] < ymid) jwhich = 0;
       else jwhich = 1;
       if (xyz[i][2] < zmid) kwhich = 0;
@@ -1000,7 +1009,11 @@ void AppLattice::create_set(int iset, int isector, int icolor, Solve *oldsolve)
 
     if (isector > 0) {
       if (xyz[i][0] < xmid) iwhich = 0;
-      else iwhich = 1;
+      else {
+        //add check for nonorthogonal wedge
+        if (xyz[i][0] > cubxhi && xyz[i][0] <= myxhi) iwhich = 0;
+        else iwhich = 1;
+      }
       if (xyz[i][1] < ymid) jwhich = 0;
       else jwhich = 1;
       if (xyz[i][2] < zmid) kwhich = 0;

@@ -26,7 +26,7 @@ using namespace SPPARKS_NS;
 // same as in other files
 
 enum{NONE,LINE_2N,SQ_4N,SQ_8N,TRI,SC_6N,SC_26N,FCC,BCC,DIAMOND,
-       FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D};
+       FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D,HCP};
 
 /* ---------------------------------------------------------------------- */
 
@@ -41,6 +41,7 @@ Lattice::Lattice(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
   else if (strcmp(arg[0],"sq/4n") == 0) style = SQ_4N;
   else if (strcmp(arg[0],"sq/8n") == 0) style = SQ_8N;
   else if (strcmp(arg[0],"tri") == 0) style = TRI;
+  else if (strcmp(arg[0],"hcp") == 0) style = HCP;
   else if (strcmp(arg[0],"sc/6n") == 0) style = SC_6N;
   else if (strcmp(arg[0],"sc/26n") == 0) style = SC_26N;
   else if (strcmp(arg[0],"fcc") == 0) style = FCC;
@@ -60,7 +61,7 @@ Lattice::Lattice(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
   if (style == LINE_2N || style == SQ_4N || style == SQ_8N ||
       style == TRI || style == SC_6N || style == SC_26N ||
       style == FCC || style == BCC || style == DIAMOND || 
-      style == FCC_OCTA_TETRA) {
+      style == FCC_OCTA_TETRA || style == HCP) {
     if (narg != 2) error->all(FLERR,"Illegal lattice command");
     latconst = atof(arg[1]);
   }
@@ -83,7 +84,7 @@ Lattice::Lattice(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
     error->all(FLERR,"Lattice style does not match dimension");
   if ((style == SC_6N || style == SC_26N || style == FCC || 
        style == BCC || style == DIAMOND || style == FCC_OCTA_TETRA ||
-       style == RANDOM_3D) && 
+       style == RANDOM_3D || style == HCP) && 
       domain->dimension != 3)
     error->all(FLERR,"Lattice style does not match dimension");
 
@@ -98,6 +99,9 @@ Lattice::Lattice(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
   } else if (style == TRI) {
     add_basis(0.0,0.0,0.0);
     add_basis(0.5,0.5,0.0);
+  } else if (style == HCP) {
+    add_basis(0.0,0.0,0.0);
+    add_basis(0.5,1.0/3.0,0.5);
   } else if (style == BCC) {
     add_basis(0.0,0.0,0.0);
     add_basis(0.5,0.5,0.5);
@@ -147,10 +151,16 @@ Lattice::Lattice(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
   a3[0] = 0.0;  a3[1] = 0.0;  a3[2] = 1.0;
 
   if (style == TRI) a2[1] = sqrt(3.0);
-
+  if (style == HCP) {
+    a1[0] = 1.0;
+    a2[0] = 0.5;
+    a2[1] = 0.5*sqrt(3.0);
+    a3[2] = sqrt(8.0)/sqrt(3.0); //ideal primitive hcp
+  }
   // lattice spacings
 
   xlattice = a1[0]*latconst;
+  xylattice = a2[0]*latconst;
   ylattice = a2[1]*latconst;
   zlattice = a3[2]*latconst;
 }
@@ -218,6 +228,8 @@ int Lattice::ncolors(int delcolor)
     if (delcolor == 1) n = 4;
   } else if (style == BCC) {
     if (delcolor == 1) n = 2;
+  } else if (style == HCP) {
+    if (delcolor == 1) n = 2;
   }
 
   return n;
@@ -272,6 +284,8 @@ int Lattice::id2color(tagint idsite, int delcolor)
     icolor = idsite % 4;
 
   } else if (style == BCC) {
+    icolor = idsite % 2;
+  } else if (style == HCP) {
     icolor = idsite % 2;
   }
 

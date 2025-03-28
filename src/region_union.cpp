@@ -48,6 +48,7 @@ RegUnion::RegUnion(SPPARKS *spk, int narg, char **arg) : Region(spk, narg, arg)
 
   extent_xlo = extent_ylo = extent_zlo = BIG;
   extent_xhi = extent_yhi = extent_zhi = -BIG;
+  extent_xy = 0.0;
 
   for (int ilist = 0; ilist < nregion; ilist++) {
     extent_xlo = MIN(extent_xlo,regions[list[ilist]]->extent_xlo);
@@ -56,6 +57,7 @@ RegUnion::RegUnion(SPPARKS *spk, int narg, char **arg) : Region(spk, narg, arg)
     extent_xhi = MAX(extent_xhi,regions[list[ilist]]->extent_xhi);
     extent_yhi = MAX(extent_yhi,regions[list[ilist]]->extent_yhi);
     extent_zhi = MAX(extent_zhi,regions[list[ilist]]->extent_zhi);
+    extent_xy = MAX(extent_xy,regions[list[ilist]]->extent_xy);
   }
 }
 

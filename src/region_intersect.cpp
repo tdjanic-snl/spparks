@@ -59,6 +59,7 @@ RegIntersect::RegIntersect(SPPARKS *spk, int narg, char **arg) :
     extent_xhi = MIN(extent_xhi,regions[list[ilist]]->extent_xhi);
     extent_yhi = MIN(extent_yhi,regions[list[ilist]]->extent_yhi);
     extent_zhi = MIN(extent_zhi,regions[list[ilist]]->extent_zhi);
+    extent_xy = 0.0;
   }
 }
 

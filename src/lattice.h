@@ -22,6 +22,7 @@ class Lattice : protected Pointers {
  public:
   int style;                           // enum list of NONE,SC,FCC,etc
   double xlattice,ylattice,zlattice;   // lattice scale factors in 3 dims
+  double xylattice;                    // x component of y lattice vector, needed for HCP type
   double a1[3],a2[3],a3[3];            // edge vectors of unit cell
   int nbasis;                          // # of basis atoms in unit cell
   double **basis;                      // fractional coords of each basis atom

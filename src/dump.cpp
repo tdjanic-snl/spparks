@@ -118,7 +118,7 @@ Dump::Dump(SPPARKS *spk, int narg, char **arg) : Pointers(spk)
   boxyhi = domain->boxyhi;
   boxzlo = domain->boxzlo;
   boxzhi = domain->boxzhi;
-
+  boxxy = domain->boxxy;
   logfreq = 0;
   delay = 0.0;
   flush_flag = 1;

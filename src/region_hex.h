@@ -11,36 +11,38 @@
    See the README file in the top-level SPPARKS directory.
 ------------------------------------------------------------------------- */
 
-#ifndef SPK_REGION_H
-#define SPK_REGION_H
+#ifdef REGION_CLASS
+RegionStyle(hex,RegHex)
 
-#include "pointers.h"
+#else
+
+#ifndef SPK_REGION_HEX_H
+#define SPK_REGION_HEX_H
+
+#include "region.h"
 
 namespace SPPARKS_NS {
 
-class Region : protected Pointers {
+class RegHex : public Region {
  public:
-  char *id,*style;
-  int interior;                     // 1 for interior, 0 for exterior
-  double xscale,yscale,zscale,xyscale;      // scale factors for lattice units
-  double extent_xlo,extent_xhi;     // bounding box on region
-  double extent_ylo,extent_yhi;
-  double extent_zlo,extent_zhi;
-  double extent_xy;
-  
-  Region(class SPPARKS *, int, char **);
-  virtual ~Region();
-  virtual int match(double, double, double) = 0;
+  RegHex(class SPPARKS *, int, char **);
+  int match(double, double, double);
 
- protected:
-  void options(int, char **);
+ private:
+  double xlo,xhi,ylo,yhi,zlo,zhi,xy;
 };
 
 }
 
 #endif
+#endif
 
 /* ERROR/WARNING messages:
+
+E: Cannot use region INF or EDGE when box does not exist
+
+Can only define a region with these parameters after a simulation
+box has been defined.
 
 E: Illegal ... command
 
@@ -48,9 +50,5 @@ Self-explanatory.  Check the input script syntax and compare to the
 documentation for the command.  You can use -echo screen as a
 command-line option when running SPPARKS to see the offending
 line.
-
-E: Use of region with undefined lattice
-
-The lattice command must be used before defining a geometric region.
 
 */

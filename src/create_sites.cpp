@@ -33,7 +33,7 @@ using namespace SPPARKS_NS;
 // same as in lattice.cpp
 
 enum{NONE,LINE_2N,SQ_4N,SQ_8N,TRI,SC_6N,SC_26N,FCC,BCC,DIAMOND,
-     FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D};
+     FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D,HCP};
 
 enum{BOX,REGION};
 enum{DUMMY,IARRAY,DARRAY};
@@ -157,11 +157,12 @@ void CreateSites::command(int narg, char **arg)
       latstyle == SQ_4N || latstyle == SQ_8N || latstyle == TRI || 
       latstyle == SC_6N || latstyle == SC_26N || 
       latstyle == FCC || latstyle == BCC || latstyle == DIAMOND ||
-      latstyle == FCC_OCTA_TETRA) {
+      latstyle == FCC_OCTA_TETRA || latstyle == HCP) {
 
     xlattice = domain->lattice->xlattice;
     ylattice = domain->lattice->ylattice;
     zlattice = domain->lattice->zlattice;
+    xylattice = domain->lattice->xylattice;
 
     structured_lattice();
     if (latticeflag) structured_connectivity();
@@ -205,6 +206,7 @@ void CreateSites::structured_lattice()
   double boxxhi = domain->boxxhi;
   double boxyhi = domain->boxyhi;
   double boxzhi = domain->boxzhi;
+  double boxxy = domain->boxxy;
   if (dimension <= 1) boxylo = 0.5 * (boxylo+boxyhi);
   if (dimension <= 2) boxzlo = 0.5 * (boxzlo+boxzhi);
 
@@ -214,6 +216,7 @@ void CreateSites::structured_lattice()
   double subxhi = domain->subxhi;
   double subyhi = domain->subyhi;
   double subzhi = domain->subzhi;
+  double subxy = domain->subxy;
 
   double **basis = domain->lattice->basis;
   int **iarray = app->iarray;
@@ -222,10 +225,12 @@ void CreateSites::structured_lattice()
   // in periodic dims:
   // check that simulation box is integer multiple of lattice spacing
   
-  nx = static_cast<int> (domain->xprd / xlattice);
-  if (dimension >= 2) ny = static_cast<int> (domain->yprd / ylattice);
+  nx = static_cast<int> ((domain->xprd +EPSILON) / xlattice);
+  if (dimension >= 2) ny = static_cast<int> ((domain->yprd + EPSILON) / ylattice);
   else ny = 1;
-  if (dimension == 3) nz = static_cast<int> (domain->zprd / zlattice);
+  if (boxxy != 0) nxy = ny;
+  else nxy = 0;
+  if (dimension == 3) nz = static_cast<int> ((domain->zprd + EPSILON) / zlattice);
   else nz = 1;
 
   if (xperiodic && 
@@ -244,6 +249,7 @@ void CreateSites::structured_lattice()
   if (style == BOX && nonperiodic == 0) {
     domain->nx = nx;
     domain->ny = ny;
+    domain->nxy = nxy;
     domain->nz = nz;
   }
 
@@ -257,6 +263,7 @@ void CreateSites::structured_lattice()
   // if dim is periodic:
   //   lattice origin = lower box boundary
   //   loop bounds = 0 to N-1
+  //   if HEX, loop bounds = 0 to N
   // if dim is non-periodic:
   //   lattice origin = 0.0
   //   loop bounds = enough to tile box completely, with all basis atoms
@@ -268,11 +275,11 @@ void CreateSites::structured_lattice()
     xhi = nx-1;
   } else {
     xorig = 0.0;
-    xlo = static_cast<int> (boxxlo / xlattice);
+    xlo = static_cast<int> ((boxxlo + EPSILON) / xlattice);
     while ((xlo+1)*xlattice > boxxlo) xlo--;
     xlo++;
-    xhi = static_cast<int> (boxxhi / xlattice);
-    while (xhi*xlattice <= boxxhi) xhi++;
+    xhi = static_cast<int> ((boxxhi + boxxy + EPSILON) / xlattice);
+    while (xhi*xlattice <= boxxhi+boxxy) xhi++;
     xhi--;
   }
 
@@ -282,10 +289,10 @@ void CreateSites::structured_lattice()
     yhi = ny-1;
   } else {
     yorig = 0.0;
-    ylo = static_cast<int> (boxylo / ylattice);
+    ylo = static_cast<int> ((boxylo+EPSILON) / ylattice);
     while ((ylo+1)*ylattice > boxylo) ylo--;
     ylo++;
-    yhi = static_cast<int> (boxyhi / ylattice);
+    yhi = static_cast<int> ((boxyhi+EPSILON) / ylattice);
     while (yhi*ylattice <= boxyhi) yhi++;
     yhi--;
   }
@@ -296,10 +303,10 @@ void CreateSites::structured_lattice()
     zhi = nz-1;
   } else {
     zorig = 0.0;
-    zlo = static_cast<int> (boxzlo / zlattice);
+    zlo = static_cast<int> ((boxzlo+EPSILON) / zlattice);
     while ((zlo+1)*zlattice > boxzlo) zlo--;
     zlo++;
-    zhi = static_cast<int> (boxzhi / zlattice);
+    zhi = static_cast<int> ((boxzhi+EPSILON) / zlattice);
     while (zhi*zlattice <= boxzhi) zhi++;
     zhi--;
   }
@@ -326,7 +333,6 @@ void CreateSites::structured_lattice()
   int i,j,k,m,nlocal;
   tagint n,gid,ii,jj,kk;
   double x,y,z;
-
   int maxlocal = 0;
   siteijk = NULL;
 
@@ -336,7 +342,9 @@ void CreateSites::structured_lattice()
   int yhi_me = ylo;
   int zlo_me = zhi;
   int zhi_me = zlo;
-
+  int nxy_me = nxy;
+  double tmpsh;
+ 
   n = 0;
   for (k = zlo; k <= zhi; k++)
     for (j = ylo; j <= yhi; j++)
@@ -345,22 +353,31 @@ void CreateSites::structured_lattice()
 	  n++;
           gid = n;
 
-	  x = (i + basis[m][0])*xlattice + xorig;
+          if (boxxy != 0.0) {
+            tmpsh = j*xylattice;
+            if (basis[m][0] >= 1.0) tmpsh += xlattice;
+          }
+          else tmpsh = 0.0;
+
+          x = (i + basis[m][0])*xlattice + xorig + j*xylattice - tmpsh;
 	  y = (j + basis[m][1])*ylattice + yorig;
 	  z = (k + basis[m][2])*zlattice + zorig;
 
-	  if (nonperiodic) {
+
+ 	  if (nonperiodic) {
 	    if (!xperiodic && (x < boxxlo || x >= boxxhi)) continue;
 	    if (!yperiodic && (y < boxylo || y >= boxyhi)) continue;
 	    if (!zperiodic && (z < boxzlo || z >= boxzhi)) continue;
 	  }
+          if (x < subxlo || x >= subxhi ||
+              y < subylo || y >= subyhi || 
+              z < subzlo || z >= subzhi) continue; 
+
+          //for hexagonal region styles; does nothing to orthogonal
+          x += tmpsh;
+
 	  if (style == REGION &&
-	      domain->regions[nregion]->match(x,y,z) == 0) continue;
-
-	  if (x < subxlo || x >= subxhi || 
-	      y < subylo || y >= subyhi || 
-	      z < subzlo || z >= subzhi) continue;
-
+	    domain->regions[nregion]->match(x,y,z) == 0) continue;
 	  if (latticeflag) applattice->add_site(gid,x,y,z);
 	  else appoff->add_site(gid,x,y,z);
 	  nlocal = app->nlocal;
@@ -390,6 +407,7 @@ void CreateSites::structured_lattice()
             xhi_me = MAX(i,xhi_me);
             ylo_me = MIN(j,ylo_me);
             yhi_me = MAX(j,yhi_me);
+            nxy_me = MAX(j,nxy_me);
             zlo_me = MIN(k,zlo_me);
             zhi_me = MAX(k,zhi_me);
           }
@@ -412,7 +430,7 @@ void CreateSites::structured_lattice()
   if (style == BOX && domain->nonperiodic == 0) {
     nbig = nbasis;
     nbig = nbig*nx*ny*nz;
-    if (style == BOX && app->nglobal != nbig)
+    if (style == BOX && app->nglobal != nbig) 
       error->all(FLERR,"Did not create correct number of sites");
   }
 
@@ -449,7 +467,7 @@ void CreateSites::structured_lattice()
     if (flagall) error->all(FLERR,"Local simple lattice is not correct");
 
     // also check that product of global min/max = nglobal
-    
+
     int xminlo = xhi;
     int xmaxhi = xlo;
 
@@ -458,8 +476,10 @@ void CreateSites::structured_lattice()
 
     int yminlo = xhi;
     int ymaxhi = xlo;
+    int xymax = nxy;
     MPI_Allreduce(&ylo_me,&yminlo,1,MPI_INT,MPI_MIN,world);
     MPI_Allreduce(&yhi_me,&ymaxhi,1,MPI_INT,MPI_MAX,world);
+    MPI_Allreduce(&nxy_me,&xymax,1,MPI_INT,MPI_MAX,world);
 
     int zminlo = xhi;
     int zmaxhi = xlo;
@@ -480,12 +500,14 @@ void CreateSites::structured_lattice()
     applattice->yhi_simple = ymaxhi;
     applattice->zlo_simple = zminlo;
     applattice->zhi_simple = zmaxhi;
+    applattice->xy_simple = xymax;
     applattice->xlo_me_simple = xlo_me;
     applattice->xhi_me_simple = xhi_me;
     applattice->ylo_me_simple = ylo_me;
     applattice->yhi_me_simple = yhi_me;
     applattice->zlo_me_simple = zlo_me;
     applattice->zhi_me_simple = zhi_me;
+    applattice->xy_me_simple = nxy_me;
   }
 
   // if offlatice, free siteijk b/c structured_connectivity() will not be called
@@ -505,6 +527,7 @@ void CreateSites::structured_connectivity()
   int ineigh,jneigh,kneigh,mneigh;
   tagint gid;
   double xneigh,yneigh,zneigh;
+  double tmpsh;
 
   int dimension = domain->dimension;
   int nonperiodic = domain->nonperiodic;
@@ -518,6 +541,7 @@ void CreateSites::structured_connectivity()
   double boxxhi = domain->boxxhi;
   double boxyhi = domain->boxyhi;
   double boxzhi = domain->boxzhi;
+  double boxxy = domain->boxxy;
 
   double xprd = domain->xprd;
   double yprd = domain->yprd;
@@ -529,6 +553,7 @@ void CreateSites::structured_connectivity()
   else if (latstyle == SQ_4N) maxneigh = 4;
   else if (latstyle == SQ_8N) maxneigh = 8;
   else if (latstyle == TRI) maxneigh = 6;
+  else if (latstyle == HCP) maxneigh = 12;
   else if (latstyle == SC_6N) maxneigh = 6;
   else if (latstyle == SC_26N) maxneigh = 26;
   else if (latstyle == FCC) maxneigh = 12;
@@ -561,7 +586,7 @@ void CreateSites::structured_connectivity()
       if ((id[i]-1) % 16 < 8) max = maxneigh;
       else max = 14;
     } else max = maxneigh;
-    
+
     for (j = 0; j < max; j++) {
 
       // ijkm neigh = indices of neighbor site
@@ -575,8 +600,13 @@ void CreateSites::structured_connectivity()
 
       // xyz neigh = coords of neighbor site
       // calculated in same manner that structured_lattice() generated coords
+      if (boxxy != 0.0) {
+        tmpsh = jneigh*xylattice;
+        if (basis[mneigh][0] > 1.0) tmpsh += xlattice;
+      }
+      else tmpsh = 0.0;
 
-      xneigh = (ineigh + basis[mneigh][0])*xlattice + xorig;
+      xneigh = (ineigh + basis[mneigh][0])*xlattice + xorig + jneigh*xylattice - tmpsh;
       yneigh = (jneigh + basis[mneigh][1])*ylattice + yorig;
       zneigh = (kneigh + basis[mneigh][2])*zlattice + zorig;
 
@@ -623,6 +653,10 @@ void CreateSites::structured_connectivity()
 	if (!yperiodic && (yneigh < boxylo || yneigh >= boxyhi)) continue;
 	if (!zperiodic && (zneigh < boxzlo || zneigh >= boxzhi)) continue;
       }
+
+      //adjustment for hexagonal region style
+      xneigh += tmpsh;
+
       if (style == REGION &&
 	  domain->regions[nregion]->match(xneigh,yneigh,zneigh) == 0) continue;
 
@@ -1061,6 +1095,7 @@ void CreateSites::ghosts_from_connectivity(AppLattice *apl, int delpropensity)
   int me = domain->me;
   int nprocs = domain->nprocs;
   int nlocal = app->nlocal;
+  double boxxy = domain ->boxxy;
 
   // nchunk = size of one site datum circulated in message
 
@@ -1270,7 +1305,10 @@ void CreateSites::offsets(double **basis)
     for (int m = 0; m < nbasis; m++)
       offsets_3d(m,basis,sqrt(3.0)/4.0*xlattice,sqrt(3.0)/4.0*xlattice,
 		 maxneigh,cmap[m]);
-
+  else if (latstyle == HCP)
+    for (int m = 0; m < nbasis; m++)
+      offsets_3d(m,basis,xlattice,xlattice,
+                 maxneigh,cmap[m]);
   else if (latstyle == FCC_OCTA_TETRA) {
     for (int m = 0; m < 4; m++) {
       offsets_3d(m,basis,sqrt(2.0)/2.0*xlattice,sqrt(2.0)/2.0*xlattice,
@@ -1347,6 +1385,7 @@ void CreateSites::offsets_3d(int ibasis, double **basis,
 	for (m = 0; m < nbasis; m++) {
 	  delx = (i+basis[m][0])*xlattice - x0;
 	  dely = (j+basis[m][1])*ylattice - y0;
+          if (j != 0) delx += j*xylattice;
 	  delz = (k+basis[m][2])*zlattice - z0;
 	  r = sqrt(delx*delx + dely*dely + delz*delz);
 	  if (r > cutlo-EPSILON && r < cuthi+EPSILON) {

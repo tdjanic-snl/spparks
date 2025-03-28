@@ -32,7 +32,7 @@
 using namespace SPPARKS_NS;
 
 enum{NONE,LINE_2N,SQ_4N,SQ_8N,TRI,SC_6N,SC_26N,FCC,BCC,DIAMOND,
-       FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D};
+       FCC_OCTA_TETRA,RANDOM_1D,RANDOM_2D,RANDOM_3D,HCP};
 
 /* ---------------------------------------------------------------------- */
 
@@ -121,6 +121,8 @@ void DiagCluster::init()
   Lattice *lattice = domain->lattice;
   if (lattice == NULL) 
     error->all(FLERR,"Cannot use diag_style cluster without a lattice defined");
+  if (lattice->style ==HCP)
+    error->all(FLERR,"Cannot use diag_style cluster with nonorthogonal box");
 
   nlocal = applattice->nlocal;
   nghost = applattice->nghost;

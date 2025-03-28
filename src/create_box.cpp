@@ -58,18 +58,19 @@ void CreateBox::command(int narg, char **arg)
   domain->boxyhi = domain->regions[iregion]->extent_yhi;
   domain->boxzlo = domain->regions[iregion]->extent_zlo;
   domain->boxzhi = domain->regions[iregion]->extent_zhi;
+  domain->boxxy  = domain->regions[iregion]->extent_xy;
 
   domain->set_box();
   domain->box_exist = 1;
 
   if (domain->me == 0)
     if (screen) {
-      if (screen) fprintf(screen,"Created box = (%g %g %g) to (%g %g %g)\n",
+      if (screen) fprintf(screen,"Created box = (%g %g %g) to (%g %g %g) with tilt %g\n",
 			  domain->boxxlo,domain->boxylo,domain->boxzlo,
-			  domain->boxxhi,domain->boxyhi,domain->boxzhi);
-      if (logfile) fprintf(logfile,"Created box = (%g %g %g) to (%g %g %g)\n",
+			  domain->boxxhi,domain->boxyhi,domain->boxzhi,domain->boxxy);
+      if (logfile) fprintf(logfile,"Created box = (%g %g %g) to (%g %g %g) with tilt %g\n",
 			   domain->boxxlo,domain->boxylo,domain->boxzlo,
-			   domain->boxxhi,domain->boxyhi,domain->boxzhi);
+			   domain->boxxhi,domain->boxyhi,domain->boxzhi,domain->boxxy);
     }
 
   if (domain->dimension == 1) domain->procs2domain_1d();

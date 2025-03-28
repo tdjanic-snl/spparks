@@ -66,16 +66,16 @@ class CreateSites : protected Pointers {
 
   // geometry info for building structured lattice with neighbors
 
-  int nx,ny,nz;
-  int xlo,xhi,ylo,yhi,zlo,zhi;
+  int nx,ny,nz,nxy;
+  int xlo,xhi,ylo,yhi,zlo,zhi,xy;
   double xorig,yorig,zorig;
   int latstyle,nbasis;
-  double xlattice,ylattice,zlattice;
+  double xlattice,ylattice,zlattice,xylattice;
 
   // geometric info for a simple, regular lattice
   // xyz me = lattice index bounds of my subdomain
 
-  int xlo_me,xhi_me,ylo_me,yhi_me,zlo_me,zhi_me;
+  int xlo_me,xhi_me,ylo_me,yhi_me,zlo_me,zhi_me,nxy_me;
 
   // site info to pack into a message from random lattices
 

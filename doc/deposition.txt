@@ -48,7 +48,8 @@ simulation box is selected (top y surface in 2d, top z surface in 3d).
 The atom trajectory (straight line) is traced along its incident
 direction which is specified by (dirx,diry,dirz) and need not be a
 unit vector.  However, diry < 0 and dirz = 0 is required for 2d
-models.  Similarly, dirz < 0 is required for 3d models.
+models.  Similarly, dirz < 0 is required for 3d models (note EXCEPTION
+below).
 
 Candidate deposition sites are vacant sites within a perpendicular
 distance {d0} from the incident trajectory which also have a current
@@ -58,7 +59,7 @@ sites is defined via the "lattice"_lattice.html command.  For example,
 if the lattice constant or box size in specified in Angstroms, then
 the distance units for this command are Angstroms as well.
 
-If the inicident angle is not vertical, then periodic images of the
+If the incident angle is not vertical, then periodic images of the
 starting point with associated incident trajectories are considered
 and the {d0} capture distance is applied to whichever trajectory the
 candidate site is closest to, in a perpendicular sense.  This means
@@ -67,6 +68,11 @@ x-periodicity in 2d and x- and y-periodicity in 3d.
 For the set of candidate sites, the selected deposition site is the
 one closest to the starting point, measuring the distance from the
 projected perpendicular point to the starting point.
+
+EXCEPTION: Trial depositions may be generated uniformly over a 3d surface 
+(e.g. over all surfaces of a prism) by assigning dirx=diry=dirz=0. 
+Candidate deposition sites are selected within a distance {d0} from 
+a random position generated over all available surfaces.
 
 IMPORTANT NOTE: "App_style diffusion"_app_diffusion.html defines valid
 sites as vacant (site value = 1) or occupied (value = 2).  When

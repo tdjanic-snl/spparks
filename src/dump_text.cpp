@@ -366,6 +366,7 @@ void DumpText::header_binary(bigint ndump, double time)
   fwrite(&boxyhi,sizeof(double),1,fp);
   fwrite(&boxzlo,sizeof(double),1,fp);
   fwrite(&boxzhi,sizeof(double),1,fp);
+  fwrite(&boxxy,sizeof(double),1,fp);
   fwrite(&size_one,sizeof(int),1,fp);
   if (multiproc) {
     int one = 1;
@@ -381,10 +382,10 @@ void DumpText::header_text(bigint ndump, double time)
   fprintf(fp,"%d %10g\n",idump,time);
   fprintf(fp,"ITEM: NUMBER OF ATOMS\n");
   fprintf(fp,BIGINT_FORMAT "\n",ndump);
-  fprintf(fp,"ITEM: BOX BOUNDS\n");
-  fprintf(fp,"%g %g\n",boxxlo,boxxhi);
-  fprintf(fp,"%g %g\n",boxylo,boxyhi);
-  fprintf(fp,"%g %g\n",boxzlo,boxzhi);
+  fprintf(fp,"ITEM: BOX BOUNDS xy xz yz\n");
+  fprintf(fp,"%g %g %g\n",boxxlo,boxxhi+boxxy,boxxy);
+  fprintf(fp,"%g %g %g\n",boxylo,boxyhi,0.0);
+  fprintf(fp,"%g %g %g\n",boxzlo,boxzhi,0.0);
   fprintf(fp,"ITEM: ATOMS %s\n",columns);
 }
 

@@ -164,6 +164,7 @@ void *App::extract(char *name)
   if (strcmp(name,"boxyhi") == 0) return (void *) &domain->boxyhi;
   if (strcmp(name,"boxzlo") == 0) return (void *) &domain->boxzlo;
   if (strcmp(name,"boxzhi") == 0) return (void *) &domain->boxzhi;
+  if (strcmp(name,"boxxy") == 0) return (void *) &domain->boxxy;
 
   if (strcmp(name,"nglobal") == 0) return (void *) &nglobal;
   if (strcmp(name,"nlocal") == 0) return (void *) &nlocal;

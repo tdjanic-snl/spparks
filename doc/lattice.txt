@@ -12,7 +12,7 @@ lattice command :h3
 
 lattice style args :pre
 
-style = {none} or {line/2n} or {sq/4n} or {sq/8n} or {tri} or {sc/6n} or {sc/26n} or {bcc} or {fcc} or {diamond} or {fcc/octa/tetra} or {random/1d} or {random/2d or {random/3d}} :ulb,l
+style = {none} or {line/2n} or {sq/4n} or {sq/8n} or {tri} or {sc/6n} or {sc/26n} or {bcc} or {fcc} or {diamond} or {fcc/octa/tetra} or {random/1d} or {random/2d or {random/3d} or {hcp}} :ulb,l
   {none} args: none
   all other styles except {random} = scale
     scale = lattice constant (distance units)
@@ -27,6 +27,7 @@ style = {none} or {line/2n} or {sq/4n} or {sq/8n} or {tri} or {sc/6n} or {sc/26n
 
 lattice sq/4n 1.0
 lattice fcc 3.52
+lattice hcp 2.66
 lattice random/3d 10000 2.0
 lattice none :pre
 
@@ -102,6 +103,12 @@ unit cell for {bcc}, 4 basis sites for {fcc}, and 8 sites for
 {diamond}.  The location of the basis sites are defined in any
 solid-state physics or crystallography text.  The {bcc} style has 8
 neighbors per site, the {fcc} has 12, and the {diamond} has 4.
+
+A lattice of style {hcp} is a 3d lattice with a1 = a 0 0, 
+a2 = 0.5*a 0.5*sqrt(3)*a 0 and a3 = 0 0 sqrt(8/3)*a.  There are 2 basis
+sites per unit cell at (0,0,0) and (0.5,sqrt(3)/6,0.5*sqrt(8/3)). There
+are 12 neighbors per site. This lattice should only be used with
+"region"_region.html style {hex}.
 
 A lattice of style {fcc/octa/tetra} is a 3d lattice with a1 = a 0 0
 and a2 = 0 a 0 and a3 = 0 0 a.  There are 16 basis sites per unit

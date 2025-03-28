@@ -21,6 +21,9 @@ style = {block} or {cylinder} or {sphere} or {union} or {intersect} :l
     c1,c2 = coords of cylinder axis in other 2 dimensions (distance units)
     radius = cylinder radius (distance units)
     lo,hi = bounds of cylinder in dim (distance units)
+  {hex} args = xlo xhi ylo yhi zlo zhi
+    xlo,xhi = bounds of a[0] lattice dimension for x direction
+    ylo,yhi,zlo,zhi = bounds of block in remaining dimensions (distance units)
   {sphere} args = x y z radius
     x,y,z = center of sphere (distance units)
     radius = radius of sphere (distance units)
@@ -41,6 +44,7 @@ keyword = {side} :l
 
 region 1 block -3.0 5.0 INF 10.0 INF INF
 region 2 sphere 0.0 0.0 0.0 5 side out
+region 3 hex 0.0 20.0 0.0 20.0 INF INF
 region void cylinder y 2 3 5 -5.0 EDGE
 region outside union 4 side1 side2 side3 side4 :pre
 
@@ -92,6 +96,14 @@ y/z; for dim = y, c1/c2 = x/z; for dim = z, c1/c2 = x/y.  Thus the
 third example above specifies a cylinder with its axis in the
 y-direction located at x = 2.0 and z = 3.0, with a radius of 5.0, and
 extending in the y-direction from -5.0 to the upper box boundary.
+
+Style {hex}, permits a non-orthogonal lattice with variation in the
+xy angle according to the present "lattice"_lattice.html. An error will
+occur if {hex} is used with an orthogonal "lattice"_lattice.html. (hi-lo) 
+values assign the values along the diagonal of a lattice matrix. 
+ylo/hi and zlo/hi are then the bounds of the box; however xlo/hi 
+assigns the bounds for the box edge, irrespective of tilt in xy. INF 
+and EDGE may not be used for y or x dimensions for this style.
 
 The {union} style creates a region consisting of the volume of all the
 listed regions combined.  The {intersect} style creates a region

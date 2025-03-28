@@ -38,6 +38,7 @@ class AppLattice : public App {
   // xyz lo/hi me simple = inclusive lattice index bounds of my subdomain
  
   int simple;                 
+  int xy_simple,xy_me_simple;             
   int xlo_simple,xhi_simple;
   int ylo_simple,yhi_simple;
   int zlo_simple,zhi_simple;

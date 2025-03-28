@@ -91,7 +91,7 @@ class Dump : protected Pointers {
   class AppLattice *applattice;
   class AppOffLattice *appoff;
 
-  double boxxlo,boxxhi,boxylo,boxyhi,boxzlo,boxzhi;
+  double boxxlo,boxxhi,boxylo,boxyhi,boxzlo,boxzhi,boxxy;
 
   virtual void init_style() = 0;
   void openfile();

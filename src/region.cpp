@@ -72,4 +72,5 @@ void Region::options(int narg, char **arg)
   xscale = domain->lattice->xlattice;
   yscale = domain->lattice->ylattice;
   zscale = domain->lattice->zlattice;
+  xyscale = domain->lattice->xylattice;
 }

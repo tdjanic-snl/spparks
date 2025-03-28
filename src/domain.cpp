@@ -39,7 +39,7 @@ Domain::Domain(SPPARKS *spk) : Pointers(spk)
   periodicity[1] = yperiodic;
   periodicity[2] = zperiodic;
 
-  nx = ny = nz = 0;
+  nx = ny = nz = nxy = 0;
   user_procgrid[0] = user_procgrid[1] = user_procgrid[2] = 0;
 
   box_exist = 0;
@@ -71,6 +71,7 @@ void Domain::set_box()
   xprd = boxxhi - boxxlo;
   yprd = boxyhi - boxylo;
   zprd = boxzhi - boxzlo;
+  
 }
 
 /* ----------------------------------------------------------------------
@@ -185,8 +186,10 @@ void Domain::procs2domain_1d()
   subxlo = boxxlo + myloc[0] * xprd/procgrid[0];
   if (myloc[0] < procgrid[0]-1) 
     subxhi = boxxlo + (myloc[0]+1) * xprd/procgrid[0];
-  else subxhi = boxxhi;
+  else 
+    subxhi = boxxhi;
 
+  subxy = boxxy;
   subylo = boxylo;
   subyhi = boxyhi;
   subzlo = boxzlo;
@@ -244,9 +247,12 @@ void Domain::procs2domain_2d()
   else subxhi = boxxhi;
 
   subylo = boxylo + myloc[1] * yprd/procgrid[1];
-  if (myloc[1] < procgrid[1]-1) 
+  subxy = boxxy/(procgrid[1]);
+  if (myloc[1] < procgrid[1]-1) {
     subyhi = boxylo + (myloc[1]+1) * yprd/procgrid[1];
-  else subyhi = boxyhi;
+  } else {
+    subyhi = boxyhi;
+  }
 
   subzlo = boxzlo;
   subzhi = boxzhi;
@@ -309,10 +315,12 @@ void Domain::procs2domain_3d()
   else subxhi = boxxhi;
 
   subylo = boxylo + myloc[1] * yprd/procgrid[1];
-  if (myloc[1] < procgrid[1]-1) 
+  subxy = boxxy/(procgrid[1]);
+  if (myloc[1] < procgrid[1]-1) {
     subyhi = boxylo + (myloc[1]+1) * yprd/procgrid[1];
-  else subyhi = boxyhi;
-
+  } else {
+    subyhi = boxyhi;
+  }
   subzlo = boxzlo + myloc[2] * zprd/procgrid[2];
   if (myloc[2] < procgrid[2]-1) 
     subzhi = boxzlo + (myloc[2]+1) * zprd/procgrid[2];
@@ -325,6 +333,18 @@ void Domain::procs2domain_3d()
 
 void Domain::pbcwrap(double* xyz)
 {
+  // y coord
+  
+  if (yperiodic) {
+    while (xyz[1] < boxylo) {
+      xyz[1] += yprd;
+      xyz[0] += boxxy;
+    } 
+    while (xyz[1] >= boxyhi) {
+      xyz[1] -= yprd;
+      xyz[0] -= boxxy;
+    }
+  }
 
   // x coord
 
@@ -333,15 +353,6 @@ void Domain::pbcwrap(double* xyz)
       xyz[0] += xprd;
     while (xyz[0] >= boxxhi)
       xyz[0] -= xprd;
-  }
-  
-  // y coord
-  
-  if (yperiodic) {
-    while (xyz[1] < boxylo)
-      xyz[1] += yprd;
-    while (xyz[1] >= boxyhi)
-      xyz[1] -= yprd;
   }
   
   // z coord
@@ -361,6 +372,19 @@ void Domain::pbcwrap(double* xyz)
 void Domain::pbcshift(double* xyz1, double* xyz2)
 {
 
+  // y coord
+
+  if (yperiodic) {
+    while ((xyz2[1] - xyz1[1])*2.0 < yprd) {
+	 xyz2[1] += yprd;
+	 xyz2[0] += boxxy;
+    }
+    while ((xyz2[1] - xyz1[1])*2.0 > yprd) {
+	 xyz2[1] -= yprd;
+	 xyz2[0] -= boxxy;
+    }
+  }
+
   // x coord
 
   if (xperiodic) {
@@ -368,15 +392,6 @@ void Domain::pbcshift(double* xyz1, double* xyz2)
 	 xyz2[0] += xprd;
     while ((xyz2[0] - xyz1[0])*2.0 > xprd)
 	 xyz2[0] -= xprd;
-  }
-
-  // y coord
-
-  if (yperiodic) {
-    while ((xyz2[1] - xyz1[1])*2.0 < yprd)
-	 xyz2[1] += yprd;
-    while ((xyz2[1] - xyz1[1])*2.0 > yprd)
-	 xyz2[1] -= yprd;
   }
 
   // z coord
@@ -402,15 +417,6 @@ void Domain::set_pbcflags(double* xyz1, double* xyz2, int* pbcflags)
   pbcflags[1] = 0.0;
   pbcflags[2] = 0.0;
 
-  // x coord
-
-  if (xperiodic) {
-    if ((xyz2[0] - xyz1[0])*2.0 < -xprd)
-	 pbcflags[0] = 1;
-    else if ((xyz2[0] - xyz1[0])*2.0 > xprd)
-	 pbcflags[0] = -1;
-  }
-
   // y coord
 
   if (yperiodic) {
@@ -418,6 +424,15 @@ void Domain::set_pbcflags(double* xyz1, double* xyz2, int* pbcflags)
 	 pbcflags[1] = 1;
     else if ((xyz2[1] - xyz1[1])*2.0 > yprd)
 	 pbcflags[1] = -1;
+  }
+
+  // x coord
+
+  if (xperiodic) {
+    if ((xyz2[0] - xyz1[0])*2.0 < -(xprd - pbcflags[1]*boxxy))
+	 pbcflags[0] = 1;
+    else if ((xyz2[0] - xyz1[0])*2.0 > (xprd - pbcflags[1]*boxxy))
+	 pbcflags[0] = -1;
   }
 
   // z coord

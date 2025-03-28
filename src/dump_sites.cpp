@@ -59,5 +59,6 @@ void DumpSites::write_header(bigint ndump, double time)
   fprintf(fp,"%g %g xlo xhi\n",boxxlo,boxxhi);
   fprintf(fp,"%g %g ylo yhi\n",boxylo,boxyhi);
   fprintf(fp,"%g %g zlo zhi\n",boxzlo,boxzhi);
+  fprintf(fp,"%g %g %g xy xz yz\n",boxxy,0.0,0.0);
   fprintf(fp,"\nValues\n\n");
 }

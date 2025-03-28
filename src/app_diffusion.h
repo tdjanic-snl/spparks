@@ -124,6 +124,7 @@ class AppDiffusion : public AppLattice {
   int schwoebel_enumerate(int, int *);
   int find_deposition_site(class RandomPark *);
   int exceeds_limit(int, double *, double &);
+  double distsq_to_site(int, double *, int, int, int, double &);
   double distsq_to_line(int, double *, int, int, double &);
   void allocate_data();
 };
